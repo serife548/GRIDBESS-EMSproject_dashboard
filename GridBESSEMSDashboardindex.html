@@ -1,0 +1,432 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>GridBESS EMS Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap">
+<style>
+/* Layout: one page, summary first. Header, KPI strip, live-hour panel + peak shaving chart,
+   battery (BMS) row, weather forecast + edge AI row, data analysis row, architecture, notes. */
+:root{
+  color-scheme:dark;
+  --bg:#070d14; --surface:#0d1823; --surface2:#122130; --line:#1d2d3e; --grid:#1a2a3a;
+  --fg:#e8eef4; --muted:#93a5b8; --faint:#62758a;
+  --accent:#b5f24a; --accent-ink:#0a1405; --accent-soft:rgba(181,242,74,.12);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --good:#3fbf7f; --warn:#e0a21b; --crit:#e5564f;
+  --display:'Rajdhani','Arial Narrow',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f2f5f1; --surface:#ffffff; --surface2:#eaf0e8; --line:#d5ddd2; --grid:#e3e9e0;
+    --fg:#0f1b14; --muted:#4f6055; --faint:#7a8a7f;
+    --accent:#3f7d00; --accent-ink:#ffffff; --accent-soft:rgba(63,125,0,.10);
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --good:#1f8f55; --warn:#b97a00; --crit:#c9372f;
+  }
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f2f5f1; --surface:#ffffff; --surface2:#eaf0e8; --line:#d5ddd2; --grid:#e3e9e0;
+  --fg:#0f1b14; --muted:#4f6055; --faint:#7a8a7f;
+  --accent:#3f7d00; --accent-ink:#ffffff; --accent-soft:rgba(63,125,0,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#1f8f55; --warn:#b97a00; --crit:#c9372f;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:.01em;text-wrap:balance}
+h1{font-size:clamp(30px,5vw,44px);line-height:1;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--accent)}
+h2{font-size:22px;text-transform:uppercase;line-height:1.1}
+h3{font-size:17px;line-height:1.15}
+p{margin:0}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:flex-end}
+header .sub{color:var(--muted);margin-top:8px;max-width:60ch}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--good);display:inline-block}
+.pill.sim{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.pill.warn i{background:var(--warn)} .pill.crit i{background:var(--crit)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.kpi b{display:block;font-family:var(--display);font-size:32px;line-height:1.05;margin:6px 0 2px;font-weight:700}
+.kpi b small{font-size:16px;font-weight:600;color:var(--muted);margin-left:3px}
+.kpi span.note{font-size:12.5px;color:var(--muted)}
+.kpi.hero b{color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.card .head p{color:var(--muted);font-size:13.5px;margin-top:4px;max-width:62ch}
+.s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}
+@media(max-width:960px){.s8,.s7,.s6,.s5,.s4{grid-column:span 12}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:16px;height:0;border-top:2.5px solid;display:inline-block}
+.legend i.dash{border-top-style:dashed}
+.legend i.box{width:11px;height:11px;border:0;border-radius:2px}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.tip{position:absolute;pointer-events:none;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.45;white-space:nowrap;z-index:3;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:opacity .08s}
+.tip b{display:block;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);margin-bottom:3px}
+.tip div{display:flex;align-items:center;gap:7px;justify-content:space-between}
+.tip div span:first-child{display:inline-flex;align-items:center;gap:7px}
+.tip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.live{display:flex;flex-direction:column;gap:14px}
+.slider{display:flex;flex-direction:column;gap:8px}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px;margin:0}
+.big{font-family:var(--display);font-weight:700;font-size:44px;line-height:1}
+.bar{height:10px;border-radius:5px;background:var(--surface2);position:relative;overflow:hidden;border:1px solid var(--line)}
+.bar>div{position:absolute;inset:0 auto 0 0;border-radius:5px}
+.bar .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg);opacity:.55}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:13.5px}
+.row .v{font-family:var(--mono);font-size:13px}
+.statlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface2)}
+.stat b{display:block;font-family:var(--display);font-size:24px;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted)}
+.checks{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.checks li{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.checks li:last-child{border-bottom:0}
+.ok{font-family:var(--mono);font-size:11px;color:var(--good);border:1px solid var(--good);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.ok.w{color:var(--warn);border-color:var(--warn)}
+.models{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.model{border:1px solid var(--line);background:var(--surface2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.model p{font-size:13.5px;color:var(--muted)}
+.model code{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:stretch}
+.node{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface2);min-width:0}
+.node.edge{border-color:var(--accent);background:var(--accent-soft)}
+.node p{font-size:13.5px;color:var(--muted);margin-top:6px}
+.arrow{align-self:center;font-family:var(--mono);color:var(--accent);font-size:20px}
+@media(max-width:820px){.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}
+.notes{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.notes a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="label">Edge-AI energy manager for storage</div>
+      <h1 style="margin-top:8px">GridBESS <em>EMS</em></h1>
+      <p class="sub">Peak shaving, battery health and forecasts for a 1 MW / 2 MWh industrial PV + BESS site, decided on the on-site controller.</p>
+    </div>
+    <div class="pills">
+      <span class="pill sim"><i style="background:var(--accent)"></i>Illustrative simulation</span>
+      <span class="pill"><i></i>Edge controller: link-loss fail-safe</span>
+      <span class="pill">1 MW / 2 MWh · hourly data</span>
+    </div>
+  </header>
+
+  <section class="kpis" aria-label="Key figures">
+    <div class="kpi hero"><span class="label">Daily peak</span><b class="num"><span id="kpiPeak">1.45 → 1.20</span><small>MW</small></b><span class="note" id="kpiPeakNote">−17 % on the factory day</span></div>
+    <div class="kpi"><span class="label">Energy from battery</span><b class="num" id="kpiEnergy">1.33<small>MWh</small></b><span class="note">Recharged at night, 90 % round-trip</span></div>
+    <div class="kpi"><span class="label">Net bill savings</span><b class="num">20–30<small>%</small></b><span class="note">Modeled target (PV + BESS MVP)</span></div>
+    <div class="kpi"><span class="label">Customer payback</span><b class="num">4–5<small>yrs</small></b><span class="note">Subject to pilot validation</span></div>
+    <div class="kpi"><span class="label">Energy shifted</span><b class="num">297–535<small>MWh/yr</small></b><span class="note">1 MW / 2 MWh pilot, 330 days</span></div>
+    <div class="kpi"><span class="label">CO₂ avoided</span><b class="num">141–253<small>t/yr</small></b><span class="note">0.474 tCO₂/MWh grid factor</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="card s4 live" aria-live="polite">
+      <div class="head"><div><h2>Site at <span id="hrLabel" class="num">14:00</span></h2><p>Move the slider to step through the day.</p></div></div>
+      <div class="slider">
+        <label class="label" for="hour">Hour of day</label>
+        <input id="hour" type="range" min="0" max="23" step="1" value="14">
+      </div>
+      <div><div class="label">Battery mode</div><div class="big" id="mode">Discharging</div><div class="row" style="margin-top:4px"><span id="modeNote" style="color:var(--muted)">Holding the grid at the peak limit</span><span class="v" id="pw">0.25 MW</span></div></div>
+      <div>
+        <div class="row"><span>Grid import</span><span class="v" id="impV">1.20 MW</span></div>
+        <div class="bar" style="margin-top:6px"><div id="impBar" style="background:var(--s1)"></div><span class="tick" id="limTick"></span></div>
+        <div class="row" style="margin-top:4px"><span class="label">Factory load without battery</span><span class="v" id="loadV">1.45 MW</span></div>
+      </div>
+      <div>
+        <div class="row"><span>State of charge</span><span class="v" id="socV">38 %</span></div>
+        <div class="bar" style="margin-top:6px"><div id="socBar" style="background:var(--s3)"></div></div>
+        <div class="row" style="margin-top:4px"><span class="label">BMS window</span><span class="v">10 – 90 %</span></div>
+      </div>
+    </div>
+
+    <div class="card s8">
+      <div class="head">
+        <div><h2>Peak shaving on one factory day</h2><p>The optimiser sets a 1.20 MW grid limit. The battery covers whatever the factory draws above it and refills overnight.</p></div>
+        <span class="pill sim">Simulated</span>
+      </div>
+      <div class="legend">
+        <span><i style="border-color:var(--s2)"></i>Factory load without battery</span>
+        <span><i style="border-color:var(--s1)"></i>Grid import with GridBESS</span>
+        <span><i class="dash" style="border-color:var(--s2)"></i>Peak limit set by optimiser</span>
+        <span><i class="box" style="background:var(--s3);opacity:.55"></i>Energy from battery</span>
+      </div>
+      <div class="chart" id="cPeak"></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card s7">
+      <div class="head">
+        <div><h2>Battery charge and discharge</h2><p>Power at the battery terminals and the resulting state of charge, kept inside the BMS window.</p></div>
+      </div>
+      <div class="legend">
+        <span><i class="box" style="background:var(--s3)"></i>Charging</span>
+        <span><i class="box" style="background:var(--s4)"></i>Discharging</span>
+        <span><i style="border-color:var(--s1)"></i>State of charge</span>
+        <span><i class="dash" style="border-color:var(--faint)"></i>BMS limits 10 / 90 %</span>
+      </div>
+      <div class="chart" id="cPower"></div>
+      <div class="chart" id="cSoc"></div>
+    </div>
+    <div class="card s5">
+      <div class="head"><div><h2>BMS: SoC and SoH</h2><p>Dispatch stays inside the battery manufacturer's limits.</p></div></div>
+      <div class="statlist">
+        <div class="stat"><span>State of health</span><b class="num">96 %</b><span>sample value</span></div>
+        <div class="stat"><span>SoC range today</span><b class="num" id="socRange">10–81 %</b><span>of 2 MWh</span></div>
+        <div class="stat"><span>Full-cycle equivalent</span><b class="num" id="efc">0.7</b><span>per day</span></div>
+        <div class="stat"><span>Max discharge</span><b class="num" id="maxDis">0.25 MW</b><span id="cRate">0.13 C of 1 MW</span></div>
+      </div>
+      <ul class="checks" aria-label="BMS limit checks">
+        <li><span>SoC stays within 10 – 90 %</span><span class="ok" id="chkSoc">OK</span></li>
+        <li><span>Power below 1 MW rating</span><span class="ok">OK</span></li>
+        <li><span>Cell temperature within limit</span><span class="ok">OK · sample</span></li>
+        <li><span>Warranty cycle budget</span><span class="ok">OK · sample</span></li>
+        <li><span>Independent protection layer</span><span class="ok">Armed</span></li>
+      </ul>
+      <p class="label">SoH, temperature and warranty rows are sample values until pilot data replaces them.</p>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card s7">
+      <div class="head">
+        <div><h2>Weather-forecast analysis</h2><p>Forecast irradiance and cloud cover are turned into expected PV output, with an uncertainty band. The back-test compares forecast with measured output.</p></div>
+        <span class="pill sim">Example plant</span>
+      </div>
+      <div class="statlist" id="wxTiles"></div>
+      <div class="legend">
+        <span><i style="border-color:var(--s1)"></i>Forecast PV output</span>
+        <span><i class="box" style="background:var(--s1);opacity:.25"></i>Uncertainty band</span>
+        <span><i style="border-color:var(--s4)"></i>Measured (back-test)</span>
+      </div>
+      <div class="chart" id="cPv"></div>
+    </div>
+    <div class="card s5">
+      <div class="head"><div><h2>Predictive Edge AI</h2><p>Three models run on the Phoenix Contact edge controller. The cloud only receives insight, never control.</p></div></div>
+      <div class="models" style="grid-template-columns:1fr">
+        <div class="model">
+          <div class="row"><h3>Forecast</h3><span class="ok">Running</span></div>
+          <code>LSTM / Prophet</code>
+          <p>Predicts site load and PV output from weather forecasts. Back-test error: <b class="num" id="mape">–</b>.</p>
+        </div>
+        <div class="model">
+          <div class="row"><h3>Dispatch</h3><span class="ok">Running</span></div>
+          <code>MPC / MILP</code>
+          <p>Sets the peak limit (<b class="num">1.20 MW</b> today) and the charge and discharge schedule. Decides minute by minute on site, shown hourly here.</p>
+        </div>
+        <div class="model">
+          <div class="row"><h3>Fault detection</h3><span class="ok w" id="faultChip">1 sample alert</span></div>
+          <code>Auto-encoders</code>
+          <p>Scores how far the measurements drift from normal behaviour. Anything above the threshold raises an alert.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card s6">
+      <div class="head"><div><h2>Data analysis: load duration</h2><p>Hours sorted from highest to lowest demand, before and after the battery.</p></div></div>
+      <div class="legend">
+        <span><i style="border-color:var(--s2)"></i>Without battery</span>
+        <span><i style="border-color:var(--s1)"></i>With GridBESS</span>
+        <span><i class="dash" style="border-color:var(--s2)"></i>Peak limit</span>
+      </div>
+      <div class="chart" id="cLdc"></div>
+      <div class="statlist" id="daStats"></div>
+    </div>
+    <div class="card s6">
+      <div class="head"><div><h2>Fault detection score</h2><p>Auto-encoder reconstruction error over the day, against the alert threshold.</p></div></div>
+      <div class="legend">
+        <span><i style="border-color:var(--s3)"></i>Anomaly score</span>
+        <span><i class="dash" style="border-color:var(--crit)"></i>Alert threshold</span>
+        <span><i class="box" style="background:var(--crit);border-radius:50%"></i>Flagged hour</span>
+      </div>
+      <div class="chart" id="cFault"></div>
+      <p class="label">The flagged hour is a sample event that shows how an alert appears.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head"><div><h2>Where decisions run</h2><p>Critical control stays on site. The cloud is for monitoring.</p></div></div>
+    <div class="flow">
+      <div class="node"><h3>On-site field devices</h3><p>PV plant via Modbus TCP. BESS via IEC 60870-5-104. Plant loads and grid via OPC UA.</p></div>
+      <div class="arrow" aria-hidden="true">⇄</div>
+      <div class="node edge"><h3>GridBESS edge controller</h3><p>Phoenix Contact PLC. Sends charge and discharge commands within BMS and protection limits. Keeps working when the link drops.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node"><h3>IoT cloud</h3><p>Dashboards, telemetry and safety logs. Insight only.</p></div>
+    </div>
+  </section>
+
+  <footer class="notes">
+    <p><b>About these numbers.</b> Hourly values are an illustrative simulation of a 1 MW / 2 MWh site with 90 % round-trip efficiency, not measurements. They will be replaced by MATLAB / Simulink results and pilot data.</p>
+    <p>Savings, payback, energy shifted and CO₂ figures are the modeled targets from the GridBESS EMS proposal. Emission factor: Republic of Turkey Ministry of Energy and Natural Resources, 2022. Demand charges at 30–70 % of commercial bills: NREL study reported by Utility Dive.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const pad=h=>String(h).padStart(2,'0')+':00';
+const HRS=[...Array(24).keys()], LABELS=HRS.map(pad);
+const LIMIT=1.2, ETA=Math.sqrt(0.9), CAP=2.0;
+/* Simulated factory day (read off the proposal chart) */
+const load=[.45,.43,.42,.42,.44,.50,.70,.95,1.15,1.30,1.38,1.42,1.35,1.40,1.45,1.38,1.25,1.05,.85,.70,.60,.55,.50,.47];
+const imp=[.70,.68,.67,.67,.69,.75,.70,.95,1.15,1.20,1.20,1.20,1.20,1.20,1.20,1.20,1.20,1.05,.85,.70,.60,.55,.50,.47];
+const chg=HRS.map(h=>Math.max(0,imp[h]-load[h])), dis=HRS.map(h=>Math.max(0,load[h]-imp[h]));
+let E=0.2; const soc=[];
+HRS.forEach(h=>{soc.push(+(E/CAP*100).toFixed(1)); E+=chg[h]*ETA-dis[h]/ETA;});
+const f2=v=>v.toFixed(2);
+
+/* ---------- chart engine ---------- */
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent,txt){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);if(txt!=null)n.textContent=txt;parent&&parent.appendChild(n);return n}
+function draw(box,cfg){
+  box.innerHTML='';
+  const W=Math.max(box.clientWidth||320,260), Ht=cfg.h||280;
+  const L=cfg.left||46,R=12,T=12,B=26,pw=W-L-R,ph=Ht-T-B,n=cfg.labels.length;
+  const bars=cfg.series.some(s=>s.type==='bars');
+  const svg=el('svg',{viewBox:`0 0 ${W} ${Ht}`,width:W,height:Ht,role:'img','aria-label':cfg.aria||''},box);
+  const xv=i=>bars?L+(i+.5)*pw/n:L+i*pw/(n-1);
+  const yv=v=>T+ph*(1-(v-cfg.min)/(cfg.max-cfg.min));
+  for(let v=cfg.min;v<=cfg.max+1e-9;v+=cfg.step){
+    el('line',{x1:L,x2:L+pw,y1:yv(v),y2:yv(v),style:'stroke:var(--grid);stroke-width:1'},svg);
+    el('text',{x:L-8,y:yv(v)+4,'text-anchor':'end'},svg,(cfg.fmt?cfg.fmt(v):v.toFixed(cfg.dec??1)));
+  }
+  if(cfg.unit)el('text',{x:L-8,y:T-2,'text-anchor':'end'},svg,'');
+  (cfg.xTicks||[0,6,12,18,23]).forEach(i=>{el('text',{x:xv(i),y:Ht-8,'text-anchor':i===0?'start':(i===n-1?'end':'middle')},svg,cfg.labels[i])});
+  (cfg.fills||[]).forEach(f=>{
+    let top=[],bot=[];
+    for(let i=0;i<n;i++){const a=f.top(i),b=f.bot(i);top.push(`${xv(i)},${yv(Math.max(a,b))}`);bot.unshift(`${xv(i)},${yv(b)}`)}
+    el('polygon',{points:top.concat(bot).join(' '),style:`fill:var(${f.color});opacity:${f.op||.4}`},svg);
+  });
+  cfg.series.forEach(s=>{
+    if(s.type==='bars'){
+      const bw=Math.max(3,pw/n-4);
+      s.values.forEach((v,i)=>{ if(Math.abs(v)<1e-9)return; const y0=yv(0),y1=yv(v);
+        el('rect',{x:xv(i)-bw/2,y:Math.min(y0,y1),width:bw,height:Math.max(1,Math.abs(y1-y0)),rx:2,style:`fill:var(${v>=0?s.pos:s.neg})`},svg)});
+    }else{
+      const pts=s.values.map((v,i)=>v==null?null:`${xv(i)},${yv(v)}`).filter(Boolean).join(' ');
+      el('polyline',{points:pts,fill:'none',style:`stroke:var(${s.color});stroke-width:${s.w||2};${s.dash?'stroke-dasharray:6 5;':''}stroke-linejoin:round;stroke-linecap:round`},svg);
+    }
+  });
+  (cfg.points||[]).forEach(p=>{el('circle',{cx:xv(p.i),cy:yv(p.v),r:5.5,style:`fill:var(${p.color});stroke:var(--surface);stroke-width:2`},svg)});
+  if(cfg.marker!=null){el('line',{x1:xv(cfg.marker),x2:xv(cfg.marker),y1:T,y2:T+ph,style:'stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 3'},svg)}
+  /* hover */
+  const guide=el('line',{y1:T,y2:T+ph,style:'stroke:var(--faint);stroke-width:1;opacity:0'},svg);
+  const tip=document.createElement('div');tip.className='tip';box.appendChild(tip);
+  const hit=el('rect',{x:L,y:T,width:pw,height:ph,fill:'transparent',style:'cursor:crosshair'},svg);
+  function show(e){
+    const r=svg.getBoundingClientRect(); const px=(e.clientX-r.left)*(W/r.width);
+    let i=bars?Math.floor((px-L)/(pw/n)):Math.round((px-L)/pw*(n-1)); i=Math.max(0,Math.min(n-1,i));
+    guide.setAttribute('x1',xv(i));guide.setAttribute('x2',xv(i));guide.style.opacity=1;
+    const rows=cfg.tip(i).map(t=>`<div><span><i style="background:var(${t.c})"></i>${t.n}</span><span class="num">${t.v}</span></div>`).join('');
+    tip.innerHTML=`<b>${cfg.labels[i]}</b>${rows}`;tip.style.opacity=1;
+    const tx=xv(i)*(r.width/W), tw=tip.offsetWidth;
+    tip.style.left=Math.max(0,Math.min(r.width-tw,tx+14))+'px';tip.style.top='8px';
+  }
+  hit.addEventListener('pointermove',show);hit.addEventListener('pointerdown',show);
+  hit.addEventListener('pointerleave',()=>{guide.style.opacity=0;tip.style.opacity=0});
+}
+
+/* ---------- datasets ---------- */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const r=rng(42);
+const clear=HRS.map(h=>h<6||h>18?0:Math.pow(Math.sin(Math.PI*(h-6)/12),1.25));
+const cloud=[0,0,0,0,0,0,.12,.1,.08,.15,.2,.28,.45,.4,.3,.22,.18,.2,.25,0,0,0,0,0];
+const PVMAX=800;
+const pvF=HRS.map(h=>Math.round(clear[h]*PVMAX*(1-cloud[h])));
+const pvLo=pvF.map((v,h)=>Math.round(v*(1-(.1+cloud[h]*.5))));
+const pvHi=pvF.map((v,h)=>Math.round(Math.min(clear[h]*PVMAX,v*(1+.08+cloud[h]*.15))));
+const pvM=pvF.map((v,h)=>v===0?0:Math.max(0,Math.round(v*(1+(r()-.5)*.14))));
+const irr=HRS.map(h=>Math.round(clear[h]*1000*(1-cloud[h]*.9)));
+const day=HRS.filter(h=>pvF[h]>0);
+const mape=day.reduce((a,h)=>a+Math.abs(pvM[h]-pvF[h])/pvM[h],0)/day.length*100;
+const pvE=pvF.reduce((a,b)=>a+b,0);
+const faultScore=HRS.map(h=>+(0.12+0.05*Math.sin(h/3)+r()*0.05).toFixed(3)); faultScore[14]=0.61;
+const FTHR=0.45;
+const ldcA=[...load].sort((a,b)=>b-a), ldcB=[...imp].sort((a,b)=>b-a);
+const LDL=HRS.map(i=>(i+1)+' h');
+
+/* ---------- static numbers ---------- */
+const peakB=Math.max(...load),peakA=Math.max(...imp);
+const eDis=dis.reduce((a,b)=>a+b,0), eChg=chg.reduce((a,b)=>a+b,0);
+$('kpiPeak').textContent=f2(peakB)+' → '+f2(peakA);
+$('kpiPeakNote').textContent='−'+Math.round((1-peakA/peakB)*100)+' % on the factory day';
+$('kpiEnergy').innerHTML=f2(eDis)+'<small>MWh</small>';
+$('socRange').textContent=Math.round(Math.min(...soc))+'–'+Math.round(Math.max(...soc))+' %';
+$('efc').textContent=(eDis/ (CAP*.9)).toFixed(1);
+const mx=Math.max(...dis);$('maxDis').textContent=f2(mx)+' MW';$('cRate').textContent=(mx/CAP).toFixed(2)+' C of 1 MW / 2 MWh';
+$('chkSoc').textContent=(Math.min(...soc)>=10-0.5&&Math.max(...soc)<=90)?'OK':'Check';
+$('mape').textContent=mape.toFixed(1)+' % MAPE';
+const above=load.filter(v=>v>LIMIT+1e-9).length;
+const avgA=load.reduce((a,b)=>a+b,0)/24, avgB=imp.reduce((a,b)=>a+b,0)/24;
+$('daStats').innerHTML=[
+ ['Hours above the limit',above+' h','without battery'],
+ ['Load factor',Math.round(avgA/peakB*100)+' → '+Math.round(avgB/peakA*100)+' %','average ÷ peak'],
+ ['Grid energy',(avgA*24).toFixed(1)+' → '+(avgB*24).toFixed(1)+' MWh','extra is battery losses'],
+].map(s=>`<div class="stat"><span>${s[0]}</span><b class="num">${s[1]}</b><span>${s[2]}</span></div>`).join('');
+$('wxTiles').innerHTML=[
+ ['Peak irradiance',Math.max(...irr)+' W/m²','tomorrow, 12:00'],
+ ['Mean cloud cover',Math.round(day.reduce((a,h)=>a+cloud[h],0)/day.length*100)+' %','daylight hours'],
+ ['Forecast PV energy',(pvE/1000).toFixed(1)+' MWh','example plant'],
+].map(s=>`<div class="stat"><span>${s[0]}</span><b class="num">${s[1]}</b><span>${s[2]}</span></div>`).join('');
+
+/* ---------- render ---------- */
+let hour=+$('hour').value;
+function render(){
+  draw($('cPeak'),{labels:LABELS,min:0,max:1.6,step:.4,h:310,marker:hour,aria:'Hourly factory load, grid import and peak limit in MW',
+    series:[{values:load,color:'--s2'},{values:imp,color:'--s1'},{values:HRS.map(()=>LIMIT),color:'--s2',dash:1,w:1.5}],
+    fills:[{top:i=>load[i],bot:i=>Math.max(LIMIT,imp[i]),color:'--s3',op:.5}],
+    tip:i=>[{n:'Factory load',c:'--s2',v:f2(load[i])+' MW'},{n:'Grid import',c:'--s1',v:f2(imp[i])+' MW'},{n:'Peak limit',c:'--s2',v:f2(LIMIT)+' MW'},{n:'Battery',c:'--s3',v:dis[i]>0?'discharge '+f2(dis[i])+' MW':chg[i]>0?'charge '+f2(chg[i])+' MW':'idle'}]});
+  draw($('cPower'),{labels:LABELS,min:-.3,max:.3,step:.1,h:170,marker:hour,xTicks:[0,6,12,18,23],dec:1,aria:'Battery charge and discharge power in MW',
+    series:[{type:'bars',values:HRS.map(h=>chg[h]-dis[h]),pos:'--s3',neg:'--s4'}],
+    tip:i=>[{n:chg[i]>0?'Charging':dis[i]>0?'Discharging':'Idle',c:chg[i]>0?'--s3':'--s4',v:f2(Math.max(chg[i],dis[i]))+' MW'}]});
+  draw($('cSoc'),{labels:LABELS,min:0,max:100,step:25,h:170,marker:hour,fmt:v=>v+'%',aria:'Battery state of charge in percent',
+    series:[{values:HRS.map(()=>90),color:'--faint',dash:1,w:1.2},{values:HRS.map(()=>10),color:'--faint',dash:1,w:1.2},{values:soc,color:'--s1',w:2.5}],
+    tip:i=>[{n:'State of charge',c:'--s1',v:Math.round(soc[i])+' %'}]});
+  draw($('cPv'),{labels:LABELS,min:0,max:800,step:200,h:250,left:50,fmt:v=>v+' kW',aria:'Forecast and measured PV output in kW',
+    series:[{values:pvF,color:'--s1',w:2.5},{values:pvM,color:'--s4',w:1.6}],
+    fills:[{top:i=>pvHi[i],bot:i=>pvLo[i],color:'--s1',op:.22}],
+    tip:i=>[{n:'Forecast',c:'--s1',v:pvF[i]+' kW'},{n:'Band',c:'--s1',v:pvLo[i]+'–'+pvHi[i]+' kW'},{n:'Measured',c:'--s4',v:pvM[i]+' kW'},{n:'Irradiance',c:'--faint',v:irr[i]+' W/m²'}]});
+  draw($('cLdc'),{labels:LDL,min:0,max:1.6,step:.4,h:230,xTicks:[0,5,11,17,23],aria:'Load duration curve in MW',
+    series:[{values:ldcA,color:'--s2'},{values:ldcB,color:'--s1'},{values:HRS.map(()=>LIMIT),color:'--s2',dash:1,w:1.5}],
+    tip:i=>[{n:'Without battery',c:'--s2',v:f2(ldcA[i])+' MW'},{n:'With GridBESS',c:'--s1',v:f2(ldcB[i])+' MW'}]});
+  draw($('cFault'),{labels:LABELS,min:0,max:.8,step:.2,h:230,aria:'Auto-encoder anomaly score by hour',
+    series:[{values:faultScore,color:'--s3',w:2},{values:HRS.map(()=>FTHR),color:'--crit',dash:1,w:1.5}],
+    points:[{i:14,v:faultScore[14],color:'--crit'}],
+    tip:i=>[{n:'Anomaly score',c:'--s3',v:faultScore[i].toFixed(2)},{n:'Threshold',c:'--crit',v:FTHR.toFixed(2)}]});
+}
+function live(){
+  const h=hour; $('hrLabel').textContent=pad(h);
+  const d=dis[h],c=chg[h];
+  $('mode').textContent=d>0?'Discharging':c>0?'Charging':'Idle';
+  $('modeNote').textContent=d>0?'Holding the grid at the peak limit':c>0?'Refilling from the grid at low demand':'Load is below the limit, battery rests';
+  $('pw').textContent=f2(Math.max(c,d))+' MW';
+  $('impV').textContent=f2(imp[h])+' MW';$('loadV').textContent=f2(load[h])+' MW';
+  $('impBar').style.width=Math.min(100,imp[h]/1.6*100)+'%';
+  $('limTick').style.left=(LIMIT/1.6*100)+'%';
+  $('socV').textContent=Math.round(soc[h])+' %';$('socBar').style.width=soc[h]+'%';
+  $('mode').style.color=d>0?'var(--s4)':c>0?'var(--s3)':'var(--muted)';
+}
+$('hour').addEventListener('input',e=>{hour=+e.target.value;live();render()});
+live();render();
+let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(render,80)}).observe(document.querySelector('.wrap'));
+})();
+</script>
+
+</body></html>
